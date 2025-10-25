@@ -5,13 +5,19 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.example.tailorrecords.navigation.Screen
+import com.example.tailorrecords.ui.screens.*
 import com.example.tailorrecords.ui.theme.TailorRecordsTheme
+import com.example.tailorrecords.viewmodel.CustomerViewModel
+import com.example.tailorrecords.viewmodel.OrderViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -19,29 +25,95 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             TailorRecordsTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                TailorRecordsApp()
             }
         }
     }
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+fun TailorRecordsApp() {
+    val navController = rememberNavController()
+    val customerViewModel: CustomerViewModel = viewModel()
+    val orderViewModel: OrderViewModel = viewModel()
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    TailorRecordsTheme {
-        Greeting("Android")
+    NavHost(
+        navController = navController,
+        startDestination = Screen.CustomerList.route,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // Customer routes
+        composable(Screen.CustomerList.route) {
+            CustomerListScreen(navController, customerViewModel)
+        }
+
+        composable(Screen.AddCustomer.route) {
+            AddEditCustomerScreen(navController, viewModel = customerViewModel)
+        }
+
+        composable(
+            route = Screen.EditCustomer.route,
+            arguments = listOf(navArgument("customerId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val customerId = backStackEntry.arguments?.getLong("customerId") ?: 0L
+            AddEditCustomerScreen(navController, customerId, customerViewModel)
+        }
+
+        composable(
+            route = Screen.CustomerDetail.route,
+            arguments = listOf(navArgument("customerId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val customerId = backStackEntry.arguments?.getLong("customerId") ?: 0L
+            CustomerDetailScreen(navController, customerId, customerViewModel, orderViewModel)
+        }
+
+        // Measurement routes
+        composable(
+            route = Screen.AddMeasurement.route,
+            arguments = listOf(navArgument("customerId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val customerId = backStackEntry.arguments?.getLong("customerId") ?: 0L
+            AddEditMeasurementScreen(navController, customerId, viewModel = customerViewModel)
+        }
+
+        composable(
+            route = Screen.EditMeasurement.route,
+            arguments = listOf(
+                navArgument("customerId") { type = NavType.LongType },
+                navArgument("measurementId") { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val customerId = backStackEntry.arguments?.getLong("customerId") ?: 0L
+            val measurementId = backStackEntry.arguments?.getLong("measurementId") ?: 0L
+            AddEditMeasurementScreen(navController, customerId, measurementId, customerViewModel)
+        }
+
+        // Order routes
+        composable(Screen.OrderList.route) {
+            OrderListScreen(navController, orderViewModel)
+        }
+
+        composable(
+            route = Screen.AddOrder.route,
+            arguments = listOf(navArgument("customerId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val customerId = backStackEntry.arguments?.getLong("customerId") ?: 0L
+            AddEditOrderScreen(navController, customerId, orderViewModel = orderViewModel, customerViewModel = customerViewModel)
+        }
+
+        composable(
+            route = Screen.EditOrder.route,
+            arguments = listOf(navArgument("orderId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getLong("orderId") ?: 0L
+            // For edit order, we need to get the customerId from the order
+            // This is a simplified version - you might want to handle this differently
+            AddEditOrderScreen(navController, 0L, orderId, orderViewModel, customerViewModel)
+        }
+
+        // Settings route
+        composable(Screen.Settings.route) {
+            SettingsScreen(navController)
+        }
     }
 }
