@@ -3,6 +3,7 @@ package com.example.tailorrecords.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -16,6 +17,7 @@ import androidx.navigation.NavController
 import com.example.tailorrecords.data.models.Customer
 import com.example.tailorrecords.data.models.Measurement
 import com.example.tailorrecords.data.models.Order
+import com.example.tailorrecords.data.models.OrderStatus
 import com.example.tailorrecords.navigation.Screen
 import com.example.tailorrecords.viewmodel.CustomerViewModel
 import com.example.tailorrecords.viewmodel.OrderViewModel
@@ -177,14 +179,24 @@ fun MeasurementsTab(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(measurements) { measurement ->
-                MeasurementCard(measurement, viewModel)
+                MeasurementCard(
+                    measurement = measurement,
+                    viewModel = viewModel,
+                    onEditClick = {
+                        navController.navigate(Screen.EditMeasurement.createRoute(customerId, measurement.id))
+                    }
+                )
             }
         }
     }
 }
 
 @Composable
-fun MeasurementCard(measurement: Measurement, viewModel: CustomerViewModel) {
+fun MeasurementCard(
+    measurement: Measurement,
+    viewModel: CustomerViewModel,
+    onEditClick: () -> Unit
+) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
 
@@ -202,8 +214,13 @@ fun MeasurementCard(measurement: Measurement, viewModel: CustomerViewModel) {
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                IconButton(onClick = { showDeleteDialog = true }) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                Row {
+                    IconButton(onClick = onEditClick) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit")
+                    }
+                    IconButton(onClick = { showDeleteDialog = true }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                    }
                 }
             }
 
@@ -287,55 +304,62 @@ fun OrdersTab(orders: List<Order>, navController: NavController, viewModel: Orde
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(orders) { order ->
-                OrderCardSmall(order, navController, viewModel)
+                CustomerOrderCard(order, { navController.navigate(Screen.EditOrder.createRoute(order.id)) })
             }
         }
     }
 }
 
 @Composable
-fun OrderCardSmall(order: Order, navController: NavController, viewModel: OrderViewModel) {
+fun CustomerOrderCard(order: Order, onClick: () -> Unit) {
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
-    
+
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     order.itemType,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
+                AssistChip(
+                    onClick = { },
+                    label = { Text(order.status.name.replace("_", " ")) },
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = when (order.status) {
+                            OrderStatus.COMPLETED -> MaterialTheme.colorScheme.primaryContainer
+                            OrderStatus.DELIVERED -> MaterialTheme.colorScheme.tertiaryContainer
+                            OrderStatus.IN_PROGRESS -> MaterialTheme.colorScheme.secondaryContainer
+                            OrderStatus.CANCELLED -> MaterialTheme.colorScheme.errorContainer
+                            else -> MaterialTheme.colorScheme.surfaceVariant
+                        }
+                    )
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Text(
                     "Due: ${dateFormat.format(Date(order.dueDate))}",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
-                    "₹${order.price} (Advance: ₹${order.advancePaid})",
+                    "₹${order.price} (Adv: ₹${order.advancePaid})",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
                 )
             }
-            
-            AssistChip(
-                onClick = { },
-                label = { Text(order.status.name) },
-                colors = AssistChipDefaults.assistChipColors(
-                    containerColor = when (order.status) {
-                        com.example.tailorrecords.data.models.OrderStatus.COMPLETED -> MaterialTheme.colorScheme.primaryContainer
-                        com.example.tailorrecords.data.models.OrderStatus.DELIVERED -> MaterialTheme.colorScheme.tertiaryContainer
-                        com.example.tailorrecords.data.models.OrderStatus.IN_PROGRESS -> MaterialTheme.colorScheme.secondaryContainer
-                        else -> MaterialTheme.colorScheme.surfaceVariant
-                    }
-                )
-            )
         }
     }
 }

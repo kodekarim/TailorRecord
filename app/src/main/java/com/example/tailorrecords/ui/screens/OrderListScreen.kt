@@ -140,6 +140,15 @@ fun OrderListScreen(
                     )
                     
                     ListItem(
+                        headlineContent = { Text("Edit Order") },
+                        leadingContent = { Icon(Icons.Default.Edit, contentDescription = "Edit") },
+                        modifier = Modifier.clickable {
+                            navController.navigate(Screen.EditOrder.createRoute(selectedOrder!!.id))
+                            showBottomSheet = false
+                        }
+                    )
+
+                    ListItem(
                         headlineContent = { Text("Mark as In Progress") },
                         leadingContent = { Icon(Icons.Default.HourglassEmpty, contentDescription = null) },
                         modifier = Modifier.clickable {

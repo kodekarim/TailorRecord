@@ -27,7 +27,7 @@ import java.util.*
 @Composable
 fun AddEditOrderScreen(
     navController: NavController,
-    customerId: Long,
+    customerId: Long?, // Nullable for edit mode
     orderId: Long? = null,
     orderViewModel: OrderViewModel = viewModel(),
     customerViewModel: CustomerViewModel = viewModel()
@@ -57,12 +57,8 @@ fun AddEditOrderScreen(
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
 
     // Load customer and order data
-    LaunchedEffect(customerId, orderId) {
-        customerViewModel.getCustomerById(customerId).collect { customer ->
-            customer?.let { customerName = it.name }
-        }
-        
-        if (orderId != null) {
+    LaunchedEffect(key1 = orderId, key2 = customerId) {
+        if (isEditMode && orderId != null) {
             orderViewModel.getOrderById(orderId).collect { order ->
                 order?.let {
                     itemType = it.itemType
@@ -73,7 +69,16 @@ fun AddEditOrderScreen(
                     selectedStatus = it.status
                     dueDate = it.dueDate
                     notes = it.notes
+                    // Fetch customer name using the customerId from the order
+                    customerViewModel.getCustomerById(it.customerId).collect { customer ->
+                        customer?.let { c -> customerName = c.name }
+                    }
                 }
+            }
+        } else if (!isEditMode && customerId != null) {
+            // This is for creating a new order
+            customerViewModel.getCustomerById(customerId).collect { customer ->
+                customer?.let { customerName = it.name }
             }
         }
     }
@@ -97,7 +102,7 @@ fun AddEditOrderScreen(
                         isLoading = true
                         val order = Order(
                             id = orderId ?: 0,
-                            customerId = customerId,
+                            customerId = customerId ?: 0, // Use the provided customerId or 0 for new
                             itemType = finalItemType,
                             quantity = quantity.toIntOrNull() ?: 1,
                             description = description.trim(),

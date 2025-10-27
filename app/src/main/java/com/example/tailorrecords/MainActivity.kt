@@ -106,9 +106,13 @@ fun TailorRecordsApp() {
             arguments = listOf(navArgument("orderId") { type = NavType.LongType })
         ) { backStackEntry ->
             val orderId = backStackEntry.arguments?.getLong("orderId") ?: 0L
-            // For edit order, we need to get the customerId from the order
-            // This is a simplified version - you might want to handle this differently
-            AddEditOrderScreen(navController, 0L, orderId, orderViewModel, customerViewModel)
+            AddEditOrderScreen(
+                navController = navController,
+                customerId = null, // customerId will be fetched from the order
+                orderId = orderId,
+                orderViewModel = orderViewModel,
+                customerViewModel = customerViewModel
+            )
         }
 
         // Settings route
