@@ -24,6 +24,10 @@ interface OrderDao {
     
     @Query("SELECT * FROM orders WHERE id = :orderId")
     fun getOrderById(orderId: Long): Flow<Order?>
+
+    @Transaction
+    @Query("SELECT * FROM orders WHERE id = :orderId")
+    fun getOrderWithCustomerById(orderId: Long): Flow<OrderWithCustomer?>
     
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrder(order: Order): Long

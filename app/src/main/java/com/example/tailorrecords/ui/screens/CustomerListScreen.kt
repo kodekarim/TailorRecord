@@ -24,6 +24,10 @@ import coil.compose.rememberAsyncImagePainter
 import com.example.tailorrecords.data.models.Customer
 import com.example.tailorrecords.navigation.Screen
 import com.example.tailorrecords.viewmodel.CustomerViewModel
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,16 +40,40 @@ fun CustomerListScreen(
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedCustomer by remember { mutableStateOf<Customer?>(null) }
 
+    val scannerLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
+        result.contents?.let {
+            // Example format: "order_id:123,customer_name:John Doe"
+            val orderId = it.substringAfter("order_id:").substringBefore(",").toLongOrNull()
+            if (orderId != null) {
+                navController.navigate(Screen.OrderDetail.createRoute(orderId))
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Customers") },
-                actions = {
-                    IconButton(onClick = { navController.navigate(Screen.OrderList.route) }) {
-                        Icon(Icons.Default.Receipt, contentDescription = "Orders")
+                navigationIcon = {
+                    IconButton(onClick = {
+                        val options = ScanOptions()
+                        options.setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                        options.setPrompt("Scan an order QR code")
+                        options.setBeepEnabled(true)
+                        options.setBarcodeImageEnabled(true)
+                        scannerLauncher.launch(options)
+                    }) {
+                        Icon(Icons.Default.QrCodeScanner, contentDescription = "Scan QR Code")
                     }
-                    IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                },
+                actions = {
+                    Row {
+                        IconButton(onClick = { navController.navigate(Screen.OrderList.route) }) {
+                            Icon(Icons.Default.Receipt, contentDescription = "Orders")
+                        }
+                        IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
+                            Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        }
                     }
                 }
             )

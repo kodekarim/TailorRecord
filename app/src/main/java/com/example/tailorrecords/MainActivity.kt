@@ -73,7 +73,7 @@ fun TailorRecordsApp() {
             arguments = listOf(navArgument("customerId") { type = NavType.LongType })
         ) { backStackEntry ->
             val customerId = backStackEntry.arguments?.getLong("customerId") ?: 0L
-            AddEditMeasurementScreen(navController, customerId, viewModel = customerViewModel)
+            AddEditMeasurementScreen(navController, customerId, customerViewModel = customerViewModel)
         }
 
         composable(
@@ -112,6 +112,25 @@ fun TailorRecordsApp() {
                 orderId = orderId,
                 orderViewModel = orderViewModel,
                 customerViewModel = customerViewModel
+            )
+        }
+
+        composable(
+            route = Screen.OrderCompletion.route,
+            arguments = listOf(
+                navArgument("orderId") { type = NavType.LongType },
+                navArgument("customerName") { type = NavType.StringType },
+                navArgument("customerPhone") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getLong("orderId") ?: 0L
+            val customerName = backStackEntry.arguments?.getString("customerName") ?: ""
+            val customerPhone = backStackEntry.arguments?.getString("customerPhone") ?: ""
+            OrderCompletionScreen(
+                navController = navController,
+                orderId = orderId,
+                customerName = customerName,
+                customerPhone = customerPhone
             )
         }
 

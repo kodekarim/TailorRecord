@@ -21,12 +21,10 @@ data class Measurement(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val customerId: Long,
-    
-    val upperBodyMeasurements: String = "",
-    val lowerBodyMeasurements: String = "",
-    
+
+    val values: Map<String, String> = emptyMap(),
+
     val notes: String = "",
-    val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis()
 )
 

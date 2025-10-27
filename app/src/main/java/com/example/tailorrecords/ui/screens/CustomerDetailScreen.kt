@@ -23,8 +23,20 @@ import com.example.tailorrecords.viewmodel.CustomerViewModel
 import com.example.tailorrecords.viewmodel.OrderViewModel
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import kotlinx.coroutines.launch
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.ui.platform.LocalContext
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CustomerDetailScreen(
     navController: NavController,
@@ -140,12 +152,13 @@ fun CustomerDetailScreen(
             // Tab content
             when (selectedTab) {
                 0 -> MeasurementsTab(measurements, navController, customerId, viewModel)
-                1 -> OrdersTab(orders, navController, orderViewModel)
+                1 -> OrdersTab(orders, navController, orderViewModel, customer)
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MeasurementsTab(
     measurements: List<Measurement>,
@@ -178,14 +191,75 @@ fun MeasurementsTab(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(measurements) { measurement ->
-                MeasurementCard(
-                    measurement = measurement,
-                    viewModel = viewModel,
-                    onEditClick = {
-                        navController.navigate(Screen.EditMeasurement.createRoute(customerId, measurement.id))
+            items(measurements, key = { it.id }) { measurement ->
+                val isLatest = measurement == measurements.first()
+                var showDeleteDialog by remember { mutableStateOf(false) }
+
+                val dismissState = rememberSwipeToDismissBoxState(
+                    confirmValueChange = {
+                        if (it == SwipeToDismissBoxValue.EndToStart) {
+                            showDeleteDialog = true
+                            false
+                        } else {
+                            true
+                        }
                     }
                 )
+
+                if (showDeleteDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showDeleteDialog = false },
+                        title = { Text("Delete Measurement") },
+                        text = { Text("Are you sure you want to delete this measurement entry?") },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    viewModel.deleteMeasurement(measurement)
+                                    showDeleteDialog = false
+                                }
+                            ) {
+                                Text("Delete", color = MaterialTheme.colorScheme.error)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDeleteDialog = false }) {
+                                Text("Cancel")
+                            }
+                        }
+                    )
+                }
+
+                SwipeToDismissBox(
+                    state = dismissState,
+                    backgroundContent = {
+                        val color = when(dismissState.dismissDirection) {
+                            SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
+                            else -> Color.Transparent
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(color)
+                                .padding(horizontal = 20.dp),
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Delete",
+                                modifier = Modifier.scale(if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) dismissState.progress else 0f)
+                            )
+                        }
+                    },
+                    modifier = Modifier.animateItemPlacement()
+                ) {
+                    MeasurementCard(
+                        measurement = measurement,
+                        isLatest = isLatest,
+                        onEditClick = {
+                            navController.navigate(Screen.EditMeasurement.createRoute(customerId, measurement.id))
+                        }
+                    )
+                }
             }
         }
     }
@@ -194,14 +268,17 @@ fun MeasurementsTab(
 @Composable
 fun MeasurementCard(
     measurement: Measurement,
-    viewModel: CustomerViewModel,
+    isLatest: Boolean,
     onEditClick: () -> Unit
 ) {
-    var showDeleteDialog by remember { mutableStateOf(false) }
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
 
+    val measurementItems = measurement.values.toList()
+
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onEditClick)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -209,75 +286,58 @@ fun MeasurementCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    dateFormat.format(Date(measurement.createdAt)),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Row {
-                    IconButton(onClick = onEditClick) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isLatest) {
+                        Badge { Text("Latest") }
+                        Spacer(modifier = Modifier.width(8.dp))
                     }
-                    IconButton(onClick = { showDeleteDialog = true }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
-                    }
+                    Text(
+                        dateFormat.format(Date(measurement.createdAt)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            
-            Text("Upper Body", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(4.dp))
-            if(measurement.upperBodyMeasurements.isNotEmpty()) {
-                Text(measurement.upperBodyMeasurements)
-            } else {
-                Text("No upper body measurements recorded.", style = MaterialTheme.typography.bodySmall)
-            }
 
-
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Lower Body", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(4.dp))
-            if(measurement.lowerBodyMeasurements.isNotEmpty()) {
-                Text(measurement.lowerBodyMeasurements)
+            if (measurementItems.isNotEmpty()) {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(measurementItems) { item ->
+                        MeasurementItem(label = item.first, value = item.second)
+                    }
+                }
             } else {
-                Text("No lower body measurements recorded.", style = MaterialTheme.typography.bodySmall)
+                Text("No measurements recorded for this entry.", style = MaterialTheme.typography.bodySmall)
             }
 
 
             if (measurement.notes.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("Notes: ${measurement.notes}", style = MaterialTheme.typography.bodySmall)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Notes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(measurement.notes, style = MaterialTheme.typography.bodySmall)
             }
         }
-    }
-
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Measurement") },
-            text = { Text("Are you sure you want to delete this measurement?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteMeasurement(measurement)
-                        showDeleteDialog = false
-                    }
-                ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
     }
 }
 
 @Composable
-fun OrdersTab(orders: List<Order>, navController: NavController, viewModel: OrderViewModel) {
+fun MeasurementItem(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(label, style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+@Composable
+fun OrdersTab(orders: List<Order>, navController: NavController, viewModel: OrderViewModel, customer: Customer?) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    
     if (orders.isEmpty()) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -304,24 +364,40 @@ fun OrdersTab(orders: List<Order>, navController: NavController, viewModel: Orde
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(orders) { order ->
-                CustomerOrderCard(order, { navController.navigate(Screen.EditOrder.createRoute(order.id)) })
+                CustomerOrderCard(
+                    order = order,
+                    customer = customer,
+                    onClick = { navController.navigate(Screen.EditOrder.createRoute(order.id)) },
+                    onShare = {
+                        coroutineScope.launch {
+                            customer?.let { cust ->
+                                shareOrderCard(context, order, cust)
+                            }
+                        }
+                    }
+                )
             }
         }
     }
 }
 
 @Composable
-fun CustomerOrderCard(order: Order, onClick: () -> Unit) {
+fun CustomerOrderCard(
+    order: Order,
+    customer: Customer?,
+    onClick: () -> Unit,
+    onShare: () -> Unit
+) {
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onClick),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -346,7 +422,9 @@ fun CustomerOrderCard(order: Order, onClick: () -> Unit) {
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onClick),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
@@ -359,6 +437,24 @@ fun CustomerOrderCard(order: Order, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
                 )
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Share button
+            Button(
+                onClick = onShare,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            ) {
+                Icon(Icons.Default.Share, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Share Order Card")
             }
         }
     }

@@ -24,7 +24,8 @@ class OrderViewModel(application: Application) : AndroidViewModel(application) {
         repository = TailorRepository(
             database.customerDao(),
             database.measurementDao(),
-            database.orderDao()
+            database.orderDao(),
+            database.measurementFieldDao()
         )
         
         ordersWithCustomers = selectedStatus.flatMapLatest { status ->
@@ -50,6 +51,10 @@ class OrderViewModel(application: Application) : AndroidViewModel(application) {
     
     fun getOrderById(orderId: Long): Flow<Order?> {
         return repository.getOrderById(orderId)
+    }
+    
+    fun getOrderWithCustomerById(orderId: Long): Flow<OrderWithCustomer?> {
+        return repository.getOrderWithCustomerById(orderId)
     }
     
     fun insertOrder(order: Order, onComplete: (Long) -> Unit = {}) {

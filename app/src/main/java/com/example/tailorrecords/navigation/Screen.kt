@@ -25,6 +25,10 @@ sealed class Screen(val route: String) {
     object OrderDetail : Screen("order_detail/{orderId}") {
         fun createRoute(orderId: Long) = "order_detail/$orderId"
     }
+    object OrderCompletion : Screen("order_completion/{orderId}/{customerName}/{customerPhone}") {
+        fun createRoute(orderId: Long, customerName: String, customerPhone: String) =
+            "order_completion/$orderId/$customerName/$customerPhone"
+    }
     object Settings : Screen("settings")
 }
 

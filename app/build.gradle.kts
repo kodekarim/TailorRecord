@@ -58,7 +58,14 @@ dependencies {
     
     // Navigation
     implementation(libs.androidx.navigation.compose)
-    
+
+    // Reorderable lists
+    implementation("org.burnoutcrew.composereorderable:reorderable:0.9.6")
+
+    // QR Code
+    implementation("com.google.zxing:core:3.5.1")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+
     // ViewModel
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     

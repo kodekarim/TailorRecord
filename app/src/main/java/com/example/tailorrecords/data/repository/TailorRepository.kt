@@ -3,17 +3,20 @@ package com.example.tailorrecords.data.repository
 import com.example.tailorrecords.data.dao.CustomerDao
 import com.example.tailorrecords.data.dao.MeasurementDao
 import com.example.tailorrecords.data.dao.OrderDao
+import com.example.tailorrecords.data.dao.MeasurementFieldDao
 import com.example.tailorrecords.data.models.Customer
 import com.example.tailorrecords.data.models.Measurement
 import com.example.tailorrecords.data.models.Order
 import com.example.tailorrecords.data.models.OrderStatus
 import com.example.tailorrecords.data.models.OrderWithCustomer
+import com.example.tailorrecords.data.models.MeasurementField
 import kotlinx.coroutines.flow.Flow
 
 class TailorRepository(
     private val customerDao: CustomerDao,
     private val measurementDao: MeasurementDao,
-    private val orderDao: OrderDao
+    private val orderDao: OrderDao,
+    private val measurementFieldDao: MeasurementFieldDao
 ) {
     // Customer operations
     fun getAllCustomers(): Flow<List<Customer>> = customerDao.getAllCustomers()
@@ -48,6 +51,16 @@ class TailorRepository(
     suspend fun deleteMeasurement(measurement: Measurement) = 
         measurementDao.deleteMeasurement(measurement)
     
+    // Measurement Field operations
+    fun getAllMeasurementFields(): Flow<List<MeasurementField>> =
+        measurementFieldDao.getAllMeasurementFields()
+
+    suspend fun insertMeasurementField(field: MeasurementField) =
+        measurementFieldDao.insertMeasurementField(field)
+
+    suspend fun deleteMeasurementField(field: MeasurementField) =
+        measurementFieldDao.deleteMeasurementField(field)
+    
     // Order operations
     fun getAllOrdersWithCustomers(): Flow<List<OrderWithCustomer>> = orderDao.getAllOrdersWithCustomers()
     
@@ -61,6 +74,9 @@ class TailorRepository(
         orderDao.getOrdersByStatus(status)
     
     fun getOrderById(orderId: Long): Flow<Order?> = orderDao.getOrderById(orderId)
+
+    fun getOrderWithCustomerById(orderId: Long): Flow<OrderWithCustomer?> =
+        orderDao.getOrderWithCustomerById(orderId)
     
     suspend fun insertOrder(order: Order): Long = orderDao.insertOrder(order)
     

@@ -23,7 +23,8 @@ class CustomerViewModel(application: Application) : AndroidViewModel(application
         repository = TailorRepository(
             database.customerDao(),
             database.measurementDao(),
-            database.orderDao()
+            database.orderDao(),
+            database.measurementFieldDao()
         )
         
         customers = searchQuery.flatMapLatest { query ->
@@ -49,6 +50,10 @@ class CustomerViewModel(application: Application) : AndroidViewModel(application
 
     fun getMeasurementsByCustomerId(customerId: Long): Flow<List<Measurement>> {
         return repository.getMeasurementsByCustomerId(customerId)
+    }
+
+    fun getMeasurementById(measurementId: Long): Flow<Measurement?> {
+        return repository.getMeasurementById(measurementId)
     }
 
     suspend fun findCustomerByPhone(phoneNumber: String): Customer? {

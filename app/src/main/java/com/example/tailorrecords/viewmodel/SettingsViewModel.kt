@@ -4,22 +4,33 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tailorrecords.data.TailorDatabase
+import com.example.tailorrecords.data.models.MeasurementField
 import com.example.tailorrecords.data.repository.TailorRepository
-import com.example.tailorrecords.utils.BackupData
 import com.example.tailorrecords.utils.DataExportImport
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: TailorRepository
+    val measurementFields: StateFlow<List<MeasurementField>>
 
     init {
         val database = TailorDatabase.getDatabase(application)
         repository = TailorRepository(
             database.customerDao(),
             database.measurementDao(),
-            database.orderDao()
+            database.orderDao(),
+            database.measurementFieldDao()
+        )
+
+        measurementFields = repository.getAllMeasurementFields().stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
         )
     }
 
@@ -68,6 +79,20 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 e.printStackTrace()
                 onComplete(false)
             }
+        }
+    }
+
+    fun addMeasurementField(name: String, category: String) {
+        if (name.isBlank() || category.isBlank()) return
+        viewModelScope.launch {
+            val field = MeasurementField(name = name.trim(), category = category.trim())
+            repository.insertMeasurementField(field)
+        }
+    }
+
+    fun deleteMeasurementField(field: MeasurementField) {
+        viewModelScope.launch {
+            repository.deleteMeasurementField(field)
         }
     }
 }

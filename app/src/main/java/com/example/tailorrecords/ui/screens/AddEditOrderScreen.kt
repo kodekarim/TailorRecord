@@ -17,9 +17,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.tailorrecords.data.models.Order
 import com.example.tailorrecords.data.models.OrderStatus
+import com.example.tailorrecords.navigation.Screen
 import com.example.tailorrecords.utils.ItemTypeManager
 import com.example.tailorrecords.viewmodel.CustomerViewModel
 import com.example.tailorrecords.viewmodel.OrderViewModel
+import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -33,53 +35,40 @@ fun AddEditOrderScreen(
     customerViewModel: CustomerViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    var customerName by remember { mutableStateOf("") }
+    val isEditMode = orderId != null
+    val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
 
-    // Item Type State
-    var itemType by remember { mutableStateOf("") }
+    val orderWithCustomer by orderViewModel.getOrderWithCustomerById(orderId ?: 0).collectAsState(initial = null)
+    val order = orderWithCustomer?.order
+    val customer = orderWithCustomer?.customer
+
+    // States for UI fields, initialized from the order
+    var itemType by remember(order) { mutableStateOf(order?.itemType ?: "") }
+    var quantity by remember(order) { mutableStateOf(order?.quantity?.toString() ?: "1") }
+    var description by remember(order) { mutableStateOf(order?.description ?: "") }
+    var price by remember(order) { mutableStateOf(order?.price?.toString() ?: "") }
+    var advancePaid by remember(order) { mutableStateOf(order?.advancePaid?.toString() ?: "") }
+    var selectedStatus by remember(order) { mutableStateOf(order?.status ?: OrderStatus.PENDING) }
+    var dueDate by remember(order) { mutableStateOf(order?.dueDate ?: System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000)) }
+    var notes by remember(order) { mutableStateOf(order?.notes ?: "") }
+
     var customItemType by remember { mutableStateOf("") }
     var isOtherSelected by remember { mutableStateOf(false) }
     var itemTypeMenuExpanded by remember { mutableStateOf(false) }
     val itemTypes = remember { ItemTypeManager.getItemTypes(context) }
-
-    var quantity by remember { mutableStateOf("1") }
-    var description by remember { mutableStateOf("") }
-    var price by remember { mutableStateOf("") }
-    var advancePaid by remember { mutableStateOf("") }
-    var selectedStatus by remember { mutableStateOf(OrderStatus.PENDING) }
-    var dueDate by remember { mutableStateOf(System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000)) }
-    var notes by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
     var showStatusMenu by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
 
-    val isEditMode = orderId != null
-    val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
-
-    // Load customer and order data
-    LaunchedEffect(key1 = orderId, key2 = customerId) {
-        if (isEditMode && orderId != null) {
-            orderViewModel.getOrderById(orderId).collect { order ->
-                order?.let {
-                    itemType = it.itemType
-                    quantity = it.quantity.toString()
-                    description = it.description
-                    price = it.price.toString()
-                    advancePaid = it.advancePaid.toString()
-                    selectedStatus = it.status
-                    dueDate = it.dueDate
-                    notes = it.notes
-                    // Fetch customer name using the customerId from the order
-                    customerViewModel.getCustomerById(it.customerId).collect { customer ->
-                        customer?.let { c -> customerName = c.name }
-                    }
-                }
+    // This effect handles loading customer name
+    var customerName by remember { mutableStateOf("") }
+    LaunchedEffect(key1 = customerId, key2 = customer) {
+        customerName = when {
+            customer != null -> customer.name
+            !isEditMode && customerId != null -> {
+                customerViewModel.getCustomerById(customerId).first()?.name ?: ""
             }
-        } else if (!isEditMode && customerId != null) {
-            // This is for creating a new order
-            customerViewModel.getCustomerById(customerId).collect { customer ->
-                customer?.let { customerName = it.name }
-            }
+            else -> ""
         }
     }
 

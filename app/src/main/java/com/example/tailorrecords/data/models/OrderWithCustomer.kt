@@ -4,8 +4,7 @@ import androidx.room.Embedded
 import androidx.room.Relation
 
 data class OrderWithCustomer(
-    @Embedded
-    val order: Order,
+    @Embedded val order: Order,
     @Relation(
         parentColumn = "customerId",
         entityColumn = "id"
