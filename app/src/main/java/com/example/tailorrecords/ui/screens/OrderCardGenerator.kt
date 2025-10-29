@@ -6,6 +6,8 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.net.Uri
+import android.util.Log
+import android.content.pm.PackageManager
 import androidx.core.content.FileProvider
 import com.example.tailorrecords.data.models.Customer
 import com.example.tailorrecords.data.models.Order
@@ -18,16 +20,33 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 
+private const val TAG = "OrderCardGenerator"
+
 // Function to generate and share order card with QR code
 suspend fun shareOrderCard(context: Context, order: Order, customer: Customer) {
-    withContext(Dispatchers.IO) {
-        try {
-            val bitmap = generateOrderCardBitmap(order, customer)
-            val uri = saveBitmapAndGetUri(context, bitmap, "order_${order.id}.png")
-            shareToWhatsApp(context, customer.phoneNumber, uri)
-        } catch (e: Exception) {
-            e.printStackTrace()
+    Log.d(TAG, "shareOrderCard called - Order ID: ${order.id}, Customer: ${customer.name}")
+    try {
+        Log.d(TAG, "Starting bitmap generation...")
+        val bitmap = withContext(Dispatchers.IO) {
+            generateOrderCardBitmap(order, customer)
         }
+        Log.d(TAG, "Bitmap generated successfully: ${bitmap.width}x${bitmap.height}")
+        
+        Log.d(TAG, "Saving bitmap to file...")
+        val uri = withContext(Dispatchers.IO) {
+            saveBitmapAndGetUri(context, bitmap, "order_${order.id}.png")
+        }
+        Log.d(TAG, "File saved successfully: $uri")
+        
+        // Share on Main thread
+        Log.d(TAG, "Launching WhatsApp share...")
+        withContext(Dispatchers.Main) {
+            shareToWhatsApp(context, customer.phoneNumber, uri)
+        }
+        Log.d(TAG, "WhatsApp share completed")
+    } catch (e: Exception) {
+        Log.e(TAG, "Error in shareOrderCard", e)
+        e.printStackTrace()
     }
 }
 
@@ -62,13 +81,18 @@ private fun generateOrderCardBitmap(order: Order, customer: Customer): Bitmap {
     }
     canvas.drawText("ORDER DETAILS", width / 2f, 100f, titlePaint)
     
-    // Order ID
+    // Order Number
     val orderIdPaint = Paint().apply {
         color = android.graphics.Color.WHITE
         textSize = 45f
         textAlign = Paint.Align.CENTER
     }
-    canvas.drawText("Order #${order.id}", width / 2f, 170f, orderIdPaint)
+    val orderDisplayText = if (order.orderNumber.isNotEmpty()) {
+        "Order #${order.orderNumber}"
+    } else {
+        "Order #${order.id}"
+    }
+    canvas.drawText(orderDisplayText, width / 2f, 170f, orderIdPaint)
     
     // Customer name
     canvas.drawText(customer.name, width / 2f, 220f, orderIdPaint)
@@ -94,6 +118,9 @@ private fun generateOrderCardBitmap(order: Order, customer: Customer): Bitmap {
         yPos += 70f
     }
     
+    if (order.orderNumber.isNotEmpty()) {
+        drawDetailRow("Order Number:", order.orderNumber)
+    }
     drawDetailRow("Item:", order.itemType)
     drawDetailRow("Quantity:", order.quantity.toString())
     drawDetailRow("Total Price:", "₹${order.price}")
@@ -146,28 +173,52 @@ private fun saveBitmapAndGetUri(context: Context, bitmap: Bitmap, fileName: Stri
 }
 
 private fun shareToWhatsApp(context: Context, phoneNumber: String, uri: Uri) {
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "image/png"
-        putExtra(Intent.EXTRA_STREAM, uri)
-        putExtra(Intent.EXTRA_TEXT, "Here are your order details. Please show the QR code when picking up your order.")
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        `package` = "com.whatsapp"
-        // Format phone number for WhatsApp
-        val whatsappNumber = phoneNumber.replace(Regex("[^0-9]"), "")
-        putExtra("jid", "$whatsappNumber@s.whatsapp.net")
-    }
+    val whatsappPackage = "com.whatsapp"
 
+    // Proactively grant URI permission to WhatsApp (helps on some OEMs)
     try {
-        context.startActivity(intent)
-    } catch (e: Exception) {
-        // If WhatsApp not installed or error, use general share
-        val generalIntent = Intent(Intent.ACTION_SEND).apply {
+        context.grantUriPermission(whatsappPackage, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    } catch (_: Exception) { }
+
+    val isWhatsAppInstalled = try {
+        context.packageManager.getPackageInfo(whatsappPackage, 0)
+        true
+    } catch (_: Exception) { false }
+
+    if (isWhatsAppInstalled) {
+        val intent = Intent(Intent.ACTION_SEND).apply {
             type = "image/png"
             putExtra(Intent.EXTRA_STREAM, uri)
             putExtra(Intent.EXTRA_TEXT, "Here are your order details. Please show the QR code when picking up your order.")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            `package` = whatsappPackage
+
+            // Attach JID only if number looks valid with country code (WhatsApp requirement)
+            val whatsappNumber = phoneNumber.replace(Regex("[^0-9]"), "")
+            if (whatsappNumber.length >= 8 && whatsappNumber.any()) {
+                putExtra("jid", "$whatsappNumber@s.whatsapp.net")
+            }
         }
-        context.startActivity(Intent.createChooser(generalIntent, "Share Order Card"))
+        try {
+            context.startActivity(intent)
+            return
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to launch WhatsApp share intent", e)
+        }
     }
+
+    // Fallback: general share chooser
+    val generalIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "image/png"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        putExtra(Intent.EXTRA_TEXT, "Here are your order details. Please show the QR code when picking up your order.")
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    context.startActivity(Intent.createChooser(generalIntent, "Share Order Card").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 }
+
+
+
 

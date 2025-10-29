@@ -9,4 +9,6 @@ data class MeasurementField(
     val id: Long = 0,
     val name: String,
     val category: String, // e.g., "Upper Body", "Lower Body"
+    val displayOrder: Int = 0 // Order in which fields should be displayed
 )
+

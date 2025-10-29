@@ -105,11 +105,12 @@ fun OrderCompletionScreen(
                         OrderDetailRow("Advance Paid", "₹${ord.advancePaid}")
                         OrderDetailRow("Balance", "₹${ord.price - ord.advancePaid}")
                         
-                        if (ord.description.isNotBlank()) {
+                        if (ord.orderNumber.isNotBlank()) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                "Description: ${ord.description}",
-                                style = MaterialTheme.typography.bodyMedium
+                                "Order Number: ${ord.orderNumber}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }

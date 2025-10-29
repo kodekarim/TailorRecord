@@ -4,7 +4,6 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -12,11 +11,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.tailorrecords.data.models.MeasurementField
 import com.example.tailorrecords.utils.DataExportImport
 import com.example.tailorrecords.viewmodel.SettingsViewModel
 import java.io.File
@@ -77,7 +74,7 @@ fun SettingsScreen(
                         inputStream.copyTo(outputStream)
                     }
                 }
-
+                
                 viewModel.importData(tempFile) { success ->
                     tempFile.delete()
                     if (success) {
@@ -106,19 +103,132 @@ fun SettingsScreen(
             )
         }
     ) { padding ->
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(16.dp),
+                .padding(padding)
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item {
-                DataManagementSection(
-                    onExportClick = { showExportDialog = true },
-                    onImportClick = { showImportDialog = true },
-                    isLoading = isLoading
+            Text(
+                "Data Management",
+                style = MaterialTheme.typography.titleLarge
+            )
+
+            Text(
+                "Backup and restore your customer data, measurements, and orders.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Export Data Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { showExportDialog = true },
+                enabled = !isLoading
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Upload,
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Export Data",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            "Save all data to a JSON file",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    }
+                }
+            }
+
+            // Import Data Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { showImportDialog = true },
+                enabled = !isLoading
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Download,
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Import Data",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            "Restore data from a JSON file",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
                 )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Important Notes",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "• Exported data is saved as JSON format\n" +
+                        "• Importing will add data to existing records\n" +
+                        "• Customer photos are included in the backup\n" +
+                        "• Keep your backup files safe",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
             }
         }
 
@@ -170,137 +280,6 @@ fun SettingsScreen(
                     }
                 }
             )
-        }
-    }
-}
-
-@Composable
-fun DataManagementSection(
-    onExportClick: () -> Unit,
-    onImportClick: () -> Unit,
-    isLoading: Boolean
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(
-            "Data Management",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
-
-        Text(
-            "Backup and restore your customer data, measurements, and orders.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Export Data Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = onExportClick,
-            enabled = !isLoading
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.Upload,
-                    contentDescription = null,
-                    modifier = Modifier.size(32.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "Export Data",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        "Save all data to a JSON file",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                }
-            }
-        }
-
-        // Import Data Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = onImportClick,
-            enabled = !isLoading
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.Download,
-                    contentDescription = null,
-                    modifier = Modifier.size(32.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "Import Data",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        "Restore data from a JSON file",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.secondaryContainer
-            )
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "Important Notes",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "• Exported data is saved as JSON format\n" +
-                            "• Importing will add data to existing records\n" +
-                            "• Customer photos are included in the backup\n" +
-                            "• Keep your backup files safe",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-            }
         }
     }
 }

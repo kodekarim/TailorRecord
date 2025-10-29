@@ -24,30 +24,63 @@ import coil.compose.rememberAsyncImagePainter
 import com.example.tailorrecords.data.models.Customer
 import com.example.tailorrecords.navigation.Screen
 import com.example.tailorrecords.viewmodel.CustomerViewModel
+import com.example.tailorrecords.viewmodel.OrderViewModel
+import kotlinx.coroutines.launch
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import kotlinx.coroutines.flow.firstOrNull
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerListScreen(
     navController: NavController,
-    viewModel: CustomerViewModel = viewModel()
+    viewModel: CustomerViewModel = viewModel(),
+    orderViewModel: OrderViewModel = viewModel()
 ) {
     val customers by viewModel.customers.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedCustomer by remember { mutableStateOf<Customer?>(null) }
 
+    val coroutineScope = rememberCoroutineScope()
     val scannerLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
-        result.contents?.let {
-            // Example format: "order_id:123,customer_name:John Doe"
-            val orderId = it.substringAfter("order_id:").substringBefore(",").toLongOrNull()
+        result.contents?.let { contents ->
+            val orderId = Regex("order_id\\s*:\\s*(\\d+)").find(contents)?.groupValues?.getOrNull(1)?.toLongOrNull()
             if (orderId != null) {
-                navController.navigate(Screen.OrderDetail.createRoute(orderId))
+                coroutineScope.launch {
+                    val owc = orderViewModel.getOrderWithCustomerById(orderId).firstOrNull()
+                    val customerId = owc?.customer?.id ?: owc?.order?.customerId
+                    if (customerId != null) {
+                        navController.navigate(Screen.CustomerDetail.createRoute(customerId, selectedTab = 1))
+                    }
+                }
             }
         }
+    }
+    
+    var showScanner by remember { mutableStateOf(false) }
+    
+    if (showScanner) {
+        QRScannerDialog(
+            onDismiss = { showScanner = false },
+            onScanResult = { result ->
+                showScanner = false
+                result?.let { contents ->
+                    val orderId = Regex("order_id\\s*:\\s*(\\d+)").find(contents)?.groupValues?.getOrNull(1)?.toLongOrNull()
+                    if (orderId != null) {
+                        coroutineScope.launch {
+                            val owc = orderViewModel.getOrderWithCustomerById(orderId).firstOrNull()
+                            val customerId = owc?.customer?.id ?: owc?.order?.customerId
+                            if (customerId != null) {
+                                navController.navigate(Screen.CustomerDetail.createRoute(customerId, selectedTab = 1))
+                            }
+                        }
+                    }
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -56,12 +89,7 @@ fun CustomerListScreen(
                 title = { Text("Customers") },
                 navigationIcon = {
                     IconButton(onClick = {
-                        val options = ScanOptions()
-                        options.setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                        options.setPrompt("Scan an order QR code")
-                        options.setBeepEnabled(true)
-                        options.setBarcodeImageEnabled(true)
-                        scannerLauncher.launch(options)
+                        showScanner = true
                     }) {
                         Icon(Icons.Default.QrCodeScanner, contentDescription = "Scan QR Code")
                     }

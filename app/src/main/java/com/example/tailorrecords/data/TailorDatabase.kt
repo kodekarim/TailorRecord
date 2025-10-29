@@ -18,7 +18,7 @@ import com.example.tailorrecords.data.models.Order
 
 @Database(
     entities = [Customer::class, Measurement::class, Order::class, MeasurementField::class],
-    version = 5,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

@@ -21,9 +21,9 @@ data class Order(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val customerId: Long,
+    val orderNumber: String = "", // Custom order number (e.g., "ORD-001")
     val itemType: String, // Shirt, Trouser, Suit, etc.
     val quantity: Int = 1,
-    val description: String = "",
     val price: Double = 0.0,
     val advancePaid: Double = 0.0,
     val status: OrderStatus = OrderStatus.PENDING,

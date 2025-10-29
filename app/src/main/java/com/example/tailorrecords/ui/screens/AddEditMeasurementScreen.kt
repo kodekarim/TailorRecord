@@ -45,13 +45,6 @@ fun AddEditMeasurementScreen(
     var newFieldCategory by remember { mutableStateOf("") }
     var fieldToDelete by remember { mutableStateOf<MeasurementField?>(null) }
 
-    // Add a state for the fields to allow reordering
-    var reorderableMeasurementFields by remember { mutableStateOf<List<MeasurementField>>(emptyList()) }
-
-    LaunchedEffect(measurementFields) {
-        reorderableMeasurementFields = measurementFields
-    }
-
     if (isEditMode && measurementId != null) {
         // When editing, load the specific measurement and listen for changes
         LaunchedEffect(measurementId) {
@@ -118,7 +111,7 @@ fun AddEditMeasurementScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            val groupedFields = reorderableMeasurementFields.groupBy { it.category }
+            val groupedFields = measurementFields.groupBy { it.category }
             val categories = listOf("Upper Body", "Lower Body")
 
             categories.forEach { category ->
@@ -133,8 +126,11 @@ fun AddEditMeasurementScreen(
                     val reordered = fieldsInCategory.toMutableList().apply {
                         add(to.index, removeAt(from.index))
                     }
-                    val allOtherFields = reorderableMeasurementFields.filter { it.category != category }
-                    reorderableMeasurementFields = allOtherFields + reordered
+                    // Update display order
+                    val updatedFields = reordered.mapIndexed { index, field ->
+                        field.copy(displayOrder = index)
+                    }
+                    settingsViewModel.updateMeasurementFieldsOrder(updatedFields)
                 })
 
                 Column(modifier = Modifier.reorderable(reorderableState)) {
@@ -153,7 +149,7 @@ fun AddEditMeasurementScreen(
                                 onDelete = {
                                     fieldToDelete = field
                                 },
-                                onReorder = {}
+                                showDragHandle = true
                             )
                         }
                     }
@@ -225,18 +221,21 @@ fun MeasurementTextField(
     value: String,
     onValueChange: (String) -> Unit,
     onDelete: (() -> Unit)? = null,
-    onReorder: (() -> Unit)? = null
+    showDragHandle: Boolean = false
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Icon(
-            Icons.Default.DragHandle,
-            contentDescription = "Reorder",
-            modifier = Modifier.padding(end = 8.dp)
-        )
+        if (showDragHandle) {
+            Icon(
+                Icons.Default.DragHandle,
+                contentDescription = "Drag to reorder",
+                modifier = Modifier.padding(end = 8.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,

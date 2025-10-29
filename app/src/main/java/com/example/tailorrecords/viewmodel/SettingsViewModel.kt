@@ -85,8 +85,20 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun addMeasurementField(name: String, category: String) {
         if (name.isBlank() || category.isBlank()) return
         viewModelScope.launch {
-            val field = MeasurementField(name = name.trim(), category = category.trim())
+            val currentFields = measurementFields.value.filter { it.category == category }
+            val maxOrder = currentFields.maxOfOrNull { it.displayOrder } ?: -1
+            val field = MeasurementField(
+                name = name.trim(),
+                category = category.trim(),
+                displayOrder = maxOrder + 1
+            )
             repository.insertMeasurementField(field)
+        }
+    }
+    
+    fun updateMeasurementFieldsOrder(fields: List<MeasurementField>) {
+        viewModelScope.launch {
+            repository.updateMeasurementFields(fields)
         }
     }
 

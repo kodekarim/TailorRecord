@@ -57,6 +57,9 @@ class TailorRepository(
 
     suspend fun insertMeasurementField(field: MeasurementField) =
         measurementFieldDao.insertMeasurementField(field)
+    
+    suspend fun updateMeasurementFields(fields: List<MeasurementField>) =
+        measurementFieldDao.updateMeasurementFields(fields)
 
     suspend fun deleteMeasurementField(field: MeasurementField) =
         measurementFieldDao.deleteMeasurementField(field)

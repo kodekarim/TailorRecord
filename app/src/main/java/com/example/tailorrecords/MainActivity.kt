@@ -61,10 +61,19 @@ fun TailorRecordsApp() {
 
         composable(
             route = Screen.CustomerDetail.route,
-            arguments = listOf(navArgument("customerId") { type = NavType.LongType })
+            arguments = listOf(
+                navArgument("customerId") { type = NavType.LongType },
+                navArgument("tab") { 
+                    type = NavType.IntType
+                    defaultValue = 0
+                }
+            )
         ) { backStackEntry ->
             val customerId = backStackEntry.arguments?.getLong("customerId") ?: 0L
-            CustomerDetailScreen(navController, customerId, customerViewModel, orderViewModel)
+            val initialTab = backStackEntry.arguments?.getInt("tab") 
+                ?: navController.previousBackStackEntry?.savedStateHandle?.get<Int>("selectedTab") 
+                ?: 0
+            CustomerDetailScreen(navController, customerId, initialTab, customerViewModel, orderViewModel)
         }
 
         // Measurement routes

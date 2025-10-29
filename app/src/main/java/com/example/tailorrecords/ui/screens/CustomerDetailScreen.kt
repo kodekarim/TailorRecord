@@ -35,19 +35,21 @@ import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.ui.platform.LocalContext
+import android.util.Log
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CustomerDetailScreen(
     navController: NavController,
     customerId: Long,
+    initialTab: Int = 0,
     viewModel: CustomerViewModel = viewModel(),
     orderViewModel: OrderViewModel = viewModel()
 ) {
     val customer by viewModel.getCustomerById(customerId).collectAsState(initial = null)
     val measurements by viewModel.getMeasurementsByCustomerId(customerId).collectAsState(initial = emptyList())
     val orders by orderViewModel.getOrdersByCustomerId(customerId).collectAsState(initial = emptyList())
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableStateOf(initialTab) }
 
     // This LaunchedEffect is no longer needed for loading data that should auto-update.
     // We can keep it if we need to perform one-off actions when customerId changes.
@@ -84,12 +86,18 @@ fun CustomerDetailScreen(
         floatingActionButton = {
             when (selectedTab) {
                 0 -> FloatingActionButton(
-                    onClick = { navController.navigate(Screen.AddMeasurement.createRoute(customerId)) }
+                    onClick = { 
+                        navController.currentBackStackEntry?.savedStateHandle?.set("selectedTab", 0)
+                        navController.navigate(Screen.AddMeasurement.createRoute(customerId))
+                    }
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Add Measurement")
                 }
                 1 -> FloatingActionButton(
-                    onClick = { navController.navigate(Screen.AddOrder.createRoute(customerId)) }
+                    onClick = { 
+                        navController.currentBackStackEntry?.savedStateHandle?.set("selectedTab", 1)
+                        navController.navigate(Screen.AddOrder.createRoute(customerId))
+                    }
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Add Order")
                 }
@@ -195,17 +203,6 @@ fun MeasurementsTab(
                 val isLatest = measurement == measurements.first()
                 var showDeleteDialog by remember { mutableStateOf(false) }
 
-                val dismissState = rememberSwipeToDismissBoxState(
-                    confirmValueChange = {
-                        if (it == SwipeToDismissBoxValue.EndToStart) {
-                            showDeleteDialog = true
-                            false
-                        } else {
-                            true
-                        }
-                    }
-                )
-
                 if (showDeleteDialog) {
                     AlertDialog(
                         onDismissRequest = { showDeleteDialog = false },
@@ -229,37 +226,17 @@ fun MeasurementsTab(
                     )
                 }
 
-                SwipeToDismissBox(
-                    state = dismissState,
-                    backgroundContent = {
-                        val color = when(dismissState.dismissDirection) {
-                            SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
-                            else -> Color.Transparent
-                        }
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(color)
-                                .padding(horizontal = 20.dp),
-                            contentAlignment = Alignment.CenterEnd
-                        ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Delete",
-                                modifier = Modifier.scale(if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) dismissState.progress else 0f)
-                            )
-                        }
+                MeasurementCard(
+                    measurement = measurement,
+                    isLatest = isLatest,
+                    onEditClick = {
+                        navController.currentBackStackEntry?.savedStateHandle?.set("selectedTab", 0)
+                        navController.navigate(Screen.EditMeasurement.createRoute(customerId, measurement.id))
                     },
-                    modifier = Modifier.animateItemPlacement()
-                ) {
-                    MeasurementCard(
-                        measurement = measurement,
-                        isLatest = isLatest,
-                        onEditClick = {
-                            navController.navigate(Screen.EditMeasurement.createRoute(customerId, measurement.id))
-                        }
-                    )
-                }
+                    onDeleteClick = {
+                        showDeleteDialog = true
+                    }
+                )
             }
         }
     }
@@ -269,16 +246,15 @@ fun MeasurementsTab(
 fun MeasurementCard(
     measurement: Measurement,
     isLatest: Boolean,
-    onEditClick: () -> Unit
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
 
     val measurementItems = measurement.values.toList()
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onEditClick)
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -286,7 +262,12 @@ fun MeasurementCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable(onClick = onEditClick)
+                ) {
                     if (isLatest) {
                         Badge { Text("Latest") }
                         Spacer(modifier = Modifier.width(8.dp))
@@ -297,29 +278,44 @@ fun MeasurementCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                
+                // Delete icon button
+                IconButton(
+                    onClick = onDeleteClick,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            if (measurementItems.isNotEmpty()) {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(measurementItems) { item ->
-                        MeasurementItem(label = item.first, value = item.second)
+            Column(modifier = Modifier.clickable(onClick = onEditClick)) {
+                if (measurementItems.isNotEmpty()) {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(measurementItems) { item ->
+                            MeasurementItem(label = item.first, value = item.second)
+                        }
                     }
+                } else {
+                    Text("No measurements recorded for this entry.", style = MaterialTheme.typography.bodySmall)
                 }
-            } else {
-                Text("No measurements recorded for this entry.", style = MaterialTheme.typography.bodySmall)
-            }
 
 
-            if (measurement.notes.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Notes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(measurement.notes, style = MaterialTheme.typography.bodySmall)
+                if (measurement.notes.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Notes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(measurement.notes, style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
     }
@@ -367,12 +363,18 @@ fun OrdersTab(orders: List<Order>, navController: NavController, viewModel: Orde
                 CustomerOrderCard(
                     order = order,
                     customer = customer,
-                    onClick = { navController.navigate(Screen.EditOrder.createRoute(order.id)) },
+                    onClick = { 
+                        navController.currentBackStackEntry?.savedStateHandle?.set("selectedTab", 1)
+                        navController.navigate(Screen.EditOrder.createRoute(order.id))
+                    },
                     onShare = {
+                        Log.d("CustomerDetailScreen", "Share button clicked for order ${order.id}")
                         coroutineScope.launch {
+                            Log.d("CustomerDetailScreen", "Coroutine launched")
                             customer?.let { cust ->
+                                Log.d("CustomerDetailScreen", "Customer found: ${cust.name}, calling shareOrderCard...")
                                 shareOrderCard(context, order, cust)
-                            }
+                            } ?: Log.e("CustomerDetailScreen", "Customer is null!")
                         }
                     }
                 )
@@ -389,23 +391,31 @@ fun CustomerOrderCard(
     onShare: () -> Unit
 ) {
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
+    val remainingBalance = order.price - order.advancePaid
 
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onClick),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     order.itemType,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
                 )
+                
                 AssistChip(
                     onClick = { },
                     label = { Text(order.status.name.replace("_", " ")) },
@@ -420,32 +430,100 @@ fun CustomerOrderCard(
                     )
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onClick),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+
+            if (order.orderNumber.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Due: ${dateFormat.format(Date(order.dueDate))}",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    "₹${order.price} (Adv: ₹${order.advancePaid})",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
+                    text = "Order #${order.orderNumber}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
-            
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        "Order Date:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        dateFormat.format(Date(order.orderDate)),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        "Due Date:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        dateFormat.format(Date(order.dueDate)),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (order.dueDate < System.currentTimeMillis() && order.status != OrderStatus.COMPLETED && order.status != OrderStatus.DELIVERED) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        fontWeight = if (order.dueDate < System.currentTimeMillis() && order.status != OrderStatus.COMPLETED && order.status != OrderStatus.DELIVERED) {
+                            FontWeight.Bold
+                        } else {
+                            FontWeight.Normal
+                        }
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
             HorizontalDivider()
             Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        "Total: ₹${order.price}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        "Advance: ₹${order.advancePaid}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        "Balance:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "₹$remainingBalance",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (remainingBalance > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
             
             // Share button
             Button(
-                onClick = onShare,
+                onClick = {
+                    onShare()
+                },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,

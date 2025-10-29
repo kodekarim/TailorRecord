@@ -43,9 +43,9 @@ fun AddEditOrderScreen(
     val customer = orderWithCustomer?.customer
 
     // States for UI fields, initialized from the order
+    var orderNumber by remember(order) { mutableStateOf(order?.orderNumber ?: "") }
     var itemType by remember(order) { mutableStateOf(order?.itemType ?: "") }
     var quantity by remember(order) { mutableStateOf(order?.quantity?.toString() ?: "1") }
-    var description by remember(order) { mutableStateOf(order?.description ?: "") }
     var price by remember(order) { mutableStateOf(order?.price?.toString() ?: "") }
     var advancePaid by remember(order) { mutableStateOf(order?.advancePaid?.toString() ?: "") }
     var selectedStatus by remember(order) { mutableStateOf(order?.status ?: OrderStatus.PENDING) }
@@ -92,9 +92,9 @@ fun AddEditOrderScreen(
                         val order = Order(
                             id = orderId ?: 0,
                             customerId = customerId ?: 0, // Use the provided customerId or 0 for new
+                            orderNumber = orderNumber.trim(),
                             itemType = finalItemType,
                             quantity = quantity.toIntOrNull() ?: 1,
-                            description = description.trim(),
                             price = price.toDoubleOrNull() ?: 0.0,
                             advancePaid = advancePaid.toDoubleOrNull() ?: 0.0,
                             status = selectedStatus,
@@ -137,6 +137,16 @@ fun AddEditOrderScreen(
                 modifier = Modifier.fillMaxWidth(),
                 readOnly = true,
                 enabled = false
+            )
+
+            // Order Number
+            OutlinedTextField(
+                value = orderNumber,
+                onValueChange = { orderNumber = it },
+                label = { Text("Order Number") },
+                placeholder = { Text("e.g., ORD-001") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
 
             // Item type dropdown
@@ -233,16 +243,6 @@ fun AddEditOrderScreen(
                     }
                 }
             }
-
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Description") },
-                placeholder = { Text("e.g., Blue cotton shirt with collar") },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 2,
-                maxLines = 3
-            )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),

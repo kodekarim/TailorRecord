@@ -271,12 +271,13 @@ fun OrderCard(
                 )
             }
 
-            if (order.description.isNotEmpty()) {
+            if (order.orderNumber.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = order.description,
+                    text = "Order #${order.orderNumber}",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
 
