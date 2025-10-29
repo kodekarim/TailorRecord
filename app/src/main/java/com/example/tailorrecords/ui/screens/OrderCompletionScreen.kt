@@ -95,7 +95,7 @@ fun OrderCompletionScreen(
                     
                     order?.let { ord ->
                         Spacer(modifier = Modifier.height(16.dp))
-                        Divider()
+                        HorizontalDivider()
                         Spacer(modifier = Modifier.height(16.dp))
                         
                         // Order details

@@ -1,6 +1,7 @@
 package com.example.tailorrecords.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.clickable
@@ -8,6 +9,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -23,7 +26,6 @@ import com.example.tailorrecords.viewmodel.CustomerViewModel
 import com.example.tailorrecords.viewmodel.OrderViewModel
 import java.text.SimpleDateFormat
 import java.util.*
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -48,8 +50,18 @@ fun CustomerDetailScreen(
 ) {
     val customer by viewModel.getCustomerById(customerId).collectAsState(initial = null)
     val measurements by viewModel.getMeasurementsByCustomerId(customerId).collectAsState(initial = emptyList())
-    val orders by orderViewModel.getOrdersByCustomerId(customerId).collectAsState(initial = emptyList())
+    val allOrders by orderViewModel.getOrdersByCustomerId(customerId).collectAsState(initial = emptyList())
     var selectedTab by remember { mutableStateOf(initialTab) }
+    
+    // Order status filter for Orders tab
+    var selectedOrderStatus by remember { mutableStateOf<OrderStatus?>(null) }
+    val filteredOrders = remember(allOrders, selectedOrderStatus) {
+        if (selectedOrderStatus == null) {
+            allOrders
+        } else {
+            allOrders.filter { it.status == selectedOrderStatus }
+        }
+    }
 
     // This LaunchedEffect is no longer needed for loading data that should auto-update.
     // We can keep it if we need to perform one-off actions when customerId changes.
@@ -153,14 +165,23 @@ fun CustomerDetailScreen(
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    text = { Text("Orders (${orders.size})") }
+                    text = { Text("Orders (${allOrders.size})") }
                 )
             }
 
             // Tab content
             when (selectedTab) {
                 0 -> MeasurementsTab(measurements, navController, customerId, viewModel)
-                1 -> OrdersTab(orders, navController, orderViewModel, customer)
+                1 -> OrdersTab(
+                    orders = filteredOrders,
+                    allOrders = allOrders,
+                    customerId = customerId,
+                    navController = navController,
+                    viewModel = orderViewModel,
+                    customer = customer,
+                    selectedStatus = selectedOrderStatus,
+                    onStatusFilterChange = { selectedOrderStatus = it }
+                )
             }
         }
     }
@@ -330,59 +351,93 @@ fun MeasurementItem(label: String, value: String) {
 }
 
 @Composable
-fun OrdersTab(orders: List<Order>, navController: NavController, viewModel: OrderViewModel, customer: Customer?) {
+fun OrdersTab(
+    orders: List<Order>,
+    allOrders: List<Order>,
+    customerId: Long,
+    navController: NavController,
+    viewModel: OrderViewModel,
+    customer: Customer?,
+    selectedStatus: OrderStatus?,
+    onStatusFilterChange: (OrderStatus?) -> Unit
+) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     
-    if (orders.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Status filter chips
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    Icons.Default.Receipt,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.outline
+            item {
+                FilterChip(
+                    selected = selectedStatus == null,
+                    onClick = { onStatusFilterChange(null) },
+                    label = { Text("All (${allOrders.size})") }
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    "No orders yet",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.outline
+            }
+            items(OrderStatus.values().size) { index ->
+                val status = OrderStatus.values()[index]
+                val count = allOrders.count { it.status == status }
+                FilterChip(
+                    selected = selectedStatus == status,
+                    onClick = { onStatusFilterChange(status) },
+                    label = { Text("${status.name.replace("_", " ")} ($count)") }
                 )
             }
         }
-    } else {
-        LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(orders) { order ->
-                CustomerOrderCard(
-                    order = order,
-                    customer = customer,
-                    onClick = { 
-                        navController.currentBackStackEntry?.savedStateHandle?.set("selectedTab", 1)
-                        navController.navigate(Screen.EditOrder.createRoute(order.id))
-                    },
-                    onShare = {
-                        Log.d("CustomerDetailScreen", "Share button clicked for order ${order.id}")
-                        coroutineScope.launch {
-                            Log.d("CustomerDetailScreen", "Coroutine launched")
-                            customer?.let { cust ->
-                                Log.d("CustomerDetailScreen", "Customer found: ${cust.name}, calling shareOrderCard...")
-                                shareOrderCard(context, order, cust)
-                            } ?: Log.e("CustomerDetailScreen", "Customer is null!")
+        
+        if (orders.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Default.Receipt,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.outline
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        if (selectedStatus == null) "No orders yet" else "No ${selectedStatus.name.replace("_", " ").lowercase()} orders",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(orders) { order ->
+                    CustomerOrderCard(
+                        order = order,
+                        customer = customer,
+                        onClick = { 
+                            navController.navigate(Screen.EditOrder.createRoute(order.id, customerId, returnTab = 1))
+                        },
+                        onShare = {
+                            Log.d("CustomerDetailScreen", "Share button clicked for order ${order.id}")
+                            coroutineScope.launch {
+                                Log.d("CustomerDetailScreen", "Coroutine launched")
+                                customer?.let { cust ->
+                                    Log.d("CustomerDetailScreen", "Customer found: ${cust.name}, calling shareOrderCard...")
+                                    shareOrderCard(context, order, cust)
+                                } ?: Log.e("CustomerDetailScreen", "Customer is null!")
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun CustomerOrderCard(
     order: Order,
@@ -515,6 +570,53 @@ fun CustomerOrderCard(
                         fontWeight = FontWeight.Bold
                     )
                 }
+            }
+            
+            // Customizations section
+            if (order.customizations.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    "Customizations:",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    order.customizations.forEach { customization ->
+                        SuggestionChip(
+                            onClick = { },
+                            label = { Text(customization, style = MaterialTheme.typography.bodySmall) }
+                        )
+                    }
+                }
+            }
+            
+            // Notes section
+            if (order.notes.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    "Notes:",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    order.notes,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
             }
             
             Spacer(modifier = Modifier.height(12.dp))

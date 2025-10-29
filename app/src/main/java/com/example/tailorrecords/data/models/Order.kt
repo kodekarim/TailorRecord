@@ -24,6 +24,7 @@ data class Order(
     val orderNumber: String = "", // Custom order number (e.g., "ORD-001")
     val itemType: String, // Shirt, Trouser, Suit, etc.
     val quantity: Int = 1,
+    val customizations: List<String> = emptyList(), // Selected customizations (e.g., "Two Pockets", "Internal Pocket")
     val price: Double = 0.0,
     val advancePaid: Double = 0.0,
     val status: OrderStatus = OrderStatus.PENDING,

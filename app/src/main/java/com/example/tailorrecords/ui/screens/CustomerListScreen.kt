@@ -26,10 +26,6 @@ import com.example.tailorrecords.navigation.Screen
 import com.example.tailorrecords.viewmodel.CustomerViewModel
 import com.example.tailorrecords.viewmodel.OrderViewModel
 import kotlinx.coroutines.launch
-import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodescanner.ScanOptions
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import kotlinx.coroutines.flow.firstOrNull
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,38 +39,30 @@ fun CustomerListScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedCustomer by remember { mutableStateOf<Customer?>(null) }
-
-    val coroutineScope = rememberCoroutineScope()
-    val scannerLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
-        result.contents?.let { contents ->
-            val orderId = Regex("order_id\\s*:\\s*(\\d+)").find(contents)?.groupValues?.getOrNull(1)?.toLongOrNull()
-            if (orderId != null) {
-                coroutineScope.launch {
-                    val owc = orderViewModel.getOrderWithCustomerById(orderId).firstOrNull()
-                    val customerId = owc?.customer?.id ?: owc?.order?.customerId
-                    if (customerId != null) {
-                        navController.navigate(Screen.CustomerDetail.createRoute(customerId, selectedTab = 1))
-                    }
-                }
-            }
-        }
-    }
-    
     var showScanner by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
     
+    // QR Scanner Dialog
     if (showScanner) {
         QRScannerDialog(
             onDismiss = { showScanner = false },
             onScanResult = { result ->
                 showScanner = false
                 result?.let { contents ->
-                    val orderId = Regex("order_id\\s*:\\s*(\\d+)").find(contents)?.groupValues?.getOrNull(1)?.toLongOrNull()
+                    val orderId = Regex("order_id\\s*:\\s*(\\d+)")
+                        .find(contents)
+                        ?.groupValues
+                        ?.getOrNull(1)
+                        ?.toLongOrNull()
+                    
                     if (orderId != null) {
                         coroutineScope.launch {
                             val owc = orderViewModel.getOrderWithCustomerById(orderId).firstOrNull()
                             val customerId = owc?.customer?.id ?: owc?.order?.customerId
                             if (customerId != null) {
-                                navController.navigate(Screen.CustomerDetail.createRoute(customerId, selectedTab = 1))
+                                navController.navigate(
+                                    Screen.CustomerDetail.createRoute(customerId, selectedTab = 1)
+                                )
                             }
                         }
                     }
@@ -126,9 +114,19 @@ fun CustomerListScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                placeholder = { Text("Search customers...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                singleLine = true
+                placeholder = { Text("Search by name or phone...") },
+                leadingIcon = { 
+                    Icon(Icons.Default.Search, contentDescription = "Search") 
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.updateSearchQuery("") }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Clear search")
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = MaterialTheme.shapes.medium
             )
 
             // Customer list
@@ -137,17 +135,30 @@ fun CustomerListScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(32.dp)
+                    ) {
                         Icon(
                             Icons.Default.PersonOutline,
                             contentDescription = null,
-                            modifier = Modifier.size(64.dp),
+                            modifier = Modifier.size(80.dp),
                             tint = MaterialTheme.colorScheme.outline
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            "No customers yet",
-                            style = MaterialTheme.typography.bodyLarge,
+                            if (searchQuery.isNotEmpty()) "No customers found" else "No customers yet",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            if (searchQuery.isNotEmpty()) 
+                                "Try a different search term" 
+                            else 
+                                "Tap + to add your first customer",
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.outline
                         )
                     }
@@ -250,8 +261,13 @@ fun CustomerCard(
         ) {
             // Customer photo or default icon
             if (customer.photoUri.isNotEmpty()) {
+                val photoUri = if (customer.photoUri.startsWith("/")) {
+                    Uri.fromFile(java.io.File(customer.photoUri))
+                } else {
+                    Uri.parse(customer.photoUri)
+                }
                 Image(
-                    painter = rememberAsyncImagePainter(Uri.parse(customer.photoUri)),
+                    painter = rememberAsyncImagePainter(photoUri),
                     contentDescription = null,
                     modifier = Modifier
                         .size(50.dp)

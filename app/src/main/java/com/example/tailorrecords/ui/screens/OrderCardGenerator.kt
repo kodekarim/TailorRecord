@@ -129,6 +129,13 @@ private fun generateOrderCardBitmap(order: Order, customer: Customer): Bitmap {
     drawDetailRow("Due Date:", dateFormat.format(Date(order.dueDate)))
     drawDetailRow("Status:", order.status.name.replace("_", " "))
     
+    // Customizations
+    if (order.customizations.isNotEmpty()) {
+        yPos += 10f
+        val customizationsText = order.customizations.joinToString(", ")
+        drawDetailRow("Customizations:", customizationsText)
+    }
+    
     // QR Code
     yPos += 30f
     val qrCodeBitmap = generateQrCode("order_id:${order.id},customer_name:${customer.name}", 400)

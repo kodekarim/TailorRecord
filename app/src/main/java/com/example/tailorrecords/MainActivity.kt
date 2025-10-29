@@ -112,15 +112,28 @@ fun TailorRecordsApp() {
 
         composable(
             route = Screen.EditOrder.route,
-            arguments = listOf(navArgument("orderId") { type = NavType.LongType })
+            arguments = listOf(
+                navArgument("orderId") { type = NavType.LongType },
+                navArgument("customerId") { 
+                    type = NavType.LongType
+                    defaultValue = 0L
+                },
+                navArgument("returnTab") { 
+                    type = NavType.IntType
+                    defaultValue = 0
+                }
+            )
         ) { backStackEntry ->
             val orderId = backStackEntry.arguments?.getLong("orderId") ?: 0L
+            val customerId = backStackEntry.arguments?.getLong("customerId")?.takeIf { it > 0 }
+            val returnTab = backStackEntry.arguments?.getInt("returnTab") ?: 0
             AddEditOrderScreen(
                 navController = navController,
-                customerId = null, // customerId will be fetched from the order
+                customerId = customerId,
                 orderId = orderId,
                 orderViewModel = orderViewModel,
-                customerViewModel = customerViewModel
+                customerViewModel = customerViewModel,
+                returnToCustomerTab = returnTab
             )
         }
 

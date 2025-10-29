@@ -19,8 +19,15 @@ sealed class Screen(val route: String) {
     object AddOrder : Screen("add_order/{customerId}") {
         fun createRoute(customerId: Long) = "add_order/$customerId"
     }
-    object EditOrder : Screen("edit_order/{orderId}") {
-        fun createRoute(orderId: Long) = "edit_order/$orderId"
+    object EditOrder : Screen("edit_order/{orderId}?customerId={customerId}&returnTab={returnTab}") {
+        fun createRoute(orderId: Long, customerId: Long? = null, returnTab: Int? = null): String {
+            var route = "edit_order/$orderId"
+            val params = mutableListOf<String>()
+            if (customerId != null) params.add("customerId=$customerId")
+            if (returnTab != null) params.add("returnTab=$returnTab")
+            if (params.isNotEmpty()) route += "?${params.joinToString("&")}"
+            return route
+        }
     }
     object OrderDetail : Screen("order_detail/{orderId}") {
         fun createRoute(orderId: Long) = "order_detail/$orderId"

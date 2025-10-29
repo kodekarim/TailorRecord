@@ -6,33 +6,43 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.tailorrecords.data.models.Order
 import com.example.tailorrecords.data.models.OrderStatus
 import com.example.tailorrecords.navigation.Screen
 import com.example.tailorrecords.utils.ItemTypeManager
+import com.example.tailorrecords.utils.CustomizationManager
 import com.example.tailorrecords.viewmodel.CustomerViewModel
 import com.example.tailorrecords.viewmodel.OrderViewModel
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun AddEditOrderScreen(
     navController: NavController,
     customerId: Long?, // Nullable for edit mode
     orderId: Long? = null,
     orderViewModel: OrderViewModel = viewModel(),
-    customerViewModel: CustomerViewModel = viewModel()
+    customerViewModel: CustomerViewModel = viewModel(),
+    returnToCustomerTab: Int = 0 // Tab to return to when navigating back
 ) {
     val context = LocalContext.current
     val isEditMode = orderId != null
@@ -41,11 +51,15 @@ fun AddEditOrderScreen(
     val orderWithCustomer by orderViewModel.getOrderWithCustomerById(orderId ?: 0).collectAsState(initial = null)
     val order = orderWithCustomer?.order
     val customer = orderWithCustomer?.customer
+    
+    // Determine the effective customer ID (for navigation back)
+    val effectiveCustomerId = if (isEditMode && order != null) order.customerId else (customerId ?: 0)
 
     // States for UI fields, initialized from the order
     var orderNumber by remember(order) { mutableStateOf(order?.orderNumber ?: "") }
     var itemType by remember(order) { mutableStateOf(order?.itemType ?: "") }
     var quantity by remember(order) { mutableStateOf(order?.quantity?.toString() ?: "1") }
+    var selectedCustomizations by remember(order) { mutableStateOf<List<String>>(order?.customizations ?: emptyList()) }
     var price by remember(order) { mutableStateOf(order?.price?.toString() ?: "") }
     var advancePaid by remember(order) { mutableStateOf(order?.advancePaid?.toString() ?: "") }
     var selectedStatus by remember(order) { mutableStateOf(order?.status ?: OrderStatus.PENDING) }
@@ -58,6 +72,7 @@ fun AddEditOrderScreen(
     val itemTypes = remember { ItemTypeManager.getItemTypes(context) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showStatusMenu by remember { mutableStateOf(false) }
+    var showCustomizationDialog by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
 
     // This effect handles loading customer name
@@ -77,7 +92,18 @@ fun AddEditOrderScreen(
             TopAppBar(
                 title = { Text(if (isEditMode) "Edit Order" else "New Order") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
+                    IconButton(onClick = { 
+                        // Navigate back to customer detail with the correct tab if we came from there
+                        if (isEditMode && effectiveCustomerId > 0 && returnToCustomerTab > 0) {
+                            navController.navigate(Screen.CustomerDetail.createRoute(effectiveCustomerId, returnToCustomerTab)) {
+                                popUpTo(Screen.CustomerDetail.createRoute(effectiveCustomerId, returnToCustomerTab)) {
+                                    inclusive = true
+                                }
+                            }
+                        } else {
+                            navController.navigateUp()
+                        }
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
@@ -89,22 +115,41 @@ fun AddEditOrderScreen(
                 FloatingActionButton(
                     onClick = {
                         isLoading = true
+                        // Preserve immutable fields from existing order in edit mode
+                        val effectiveOrderDate = if (isEditMode && order != null) order.orderDate else System.currentTimeMillis()
+                        val effectiveCompletedDate = when (selectedStatus) {
+                            OrderStatus.COMPLETED, OrderStatus.DELIVERED -> order?.completedDate ?: System.currentTimeMillis()
+                            else -> null
+                        }
+
                         val order = Order(
                             id = orderId ?: 0,
-                            customerId = customerId ?: 0, // Use the provided customerId or 0 for new
+                            customerId = effectiveCustomerId,
                             orderNumber = orderNumber.trim(),
                             itemType = finalItemType,
                             quantity = quantity.toIntOrNull() ?: 1,
+                            customizations = selectedCustomizations,
                             price = price.toDoubleOrNull() ?: 0.0,
                             advancePaid = advancePaid.toDoubleOrNull() ?: 0.0,
                             status = selectedStatus,
+                            orderDate = effectiveOrderDate,
                             dueDate = dueDate,
+                            completedDate = effectiveCompletedDate,
                             notes = notes.trim()
                         )
 
                         if (isEditMode) {
                             orderViewModel.updateOrder(order)
-                            navController.navigateUp()
+                            // Navigate back to customer detail with the correct tab if we came from there
+                            if (effectiveCustomerId > 0 && returnToCustomerTab > 0) {
+                                navController.navigate(Screen.CustomerDetail.createRoute(effectiveCustomerId, returnToCustomerTab)) {
+                                    popUpTo(Screen.CustomerDetail.createRoute(effectiveCustomerId, returnToCustomerTab)) {
+                                        inclusive = true
+                                    }
+                                }
+                            } else {
+                                navController.navigateUp()
+                            }
                         } else {
                             orderViewModel.insertOrder(order) { id ->
                                 // Add the custom item type if it's new
@@ -197,6 +242,73 @@ fun AddEditOrderScreen(
                 )
             }
 
+            // Customizations Section
+            val finalItemType = if (isOtherSelected) customItemType.trim() else itemType
+            if (finalItemType.isNotBlank()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Customizations",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Button(
+                                onClick = { showCustomizationDialog = true },
+                                modifier = Modifier.height(36.dp)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Add")
+                            }
+                        }
+
+                        if (selectedCustomizations.isNotEmpty()) {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                selectedCustomizations.forEach { customization ->
+                                    AssistChip(
+                                        onClick = {
+                                            selectedCustomizations = selectedCustomizations.filter { it != customization }
+                                        },
+                                        label = { Text(customization) },
+                                        trailingIcon = {
+                                            Icon(
+                                                Icons.Default.Close,
+                                                contentDescription = "Remove",
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        } else {
+                            Text(
+                                "No customizations added",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -356,5 +468,115 @@ fun AddEditOrderScreen(
             DatePicker(state = datePickerState)
         }
     }
+
+    // Customization dialog
+    if (showCustomizationDialog) {
+        val finalItemType = if (isOtherSelected) customItemType.trim() else itemType
+        CustomizationDialog(
+            itemType = finalItemType,
+            existingCustomizations = selectedCustomizations,
+            onDismiss = { showCustomizationDialog = false },
+            onAdd = { customization ->
+                selectedCustomizations = selectedCustomizations + customization
+                showCustomizationDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun CustomizationDialog(
+    itemType: String,
+    existingCustomizations: List<String>,
+    onDismiss: () -> Unit,
+    onAdd: (String) -> Unit
+) {
+    val context = LocalContext.current
+    var newCustomization by remember { mutableStateOf("") }
+    val availableCustomizations = remember(itemType) {
+        CustomizationManager.getCustomizations(context, itemType)
+            .filter { it !in existingCustomizations }
+    }
+    var showNewCustomizationField by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Customization") },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (availableCustomizations.isNotEmpty()) {
+                    Text(
+                        "Select from saved options:",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 200.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(availableCustomizations.size) { index ->
+                            val customization = availableCustomizations[index]
+                            OutlinedCard(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onAdd(customization)
+                                    }
+                            ) {
+                                Text(
+                                    customization,
+                                    modifier = Modifier.padding(12.dp),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                }
+
+                if (showNewCustomizationField) {
+                    OutlinedTextField(
+                        value = newCustomization,
+                        onValueChange = { newCustomization = it },
+                        label = { Text("New Customization") },
+                        placeholder = { Text("e.g., Two Pockets") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                } else {
+                    TextButton(
+                        onClick = { showNewCustomizationField = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Create New Customization")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (showNewCustomizationField && newCustomization.isNotBlank()) {
+                Button(
+                    onClick = {
+                        CustomizationManager.addCustomization(context, itemType, newCustomization.trim())
+                        onAdd(newCustomization.trim())
+                    }
+                ) {
+                    Text("Add")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 

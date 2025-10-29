@@ -1,8 +1,12 @@
 package com.example.tailorrecords.ui.screens
 
+import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import java.io.File
+import java.io.FileOutputStream
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -43,6 +47,27 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+// Helper function to copy image to app storage
+fun copyImageToAppStorage(context: Context, sourceUri: Uri, customerId: Long): String {
+    try {
+        val inputStream = context.contentResolver.openInputStream(sourceUri) ?: return ""
+        val fileName = "customer_${customerId}_${System.currentTimeMillis()}.jpg"
+        val file = File(context.filesDir, fileName)
+        val outputStream = FileOutputStream(file)
+        
+        inputStream.use { input ->
+            outputStream.use { output ->
+                input.copyTo(output)
+            }
+        }
+        
+        return file.absolutePath
+    } catch (e: Exception) {
+        e.printStackTrace()
+        return ""
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditCustomerScreen(
@@ -50,10 +75,12 @@ fun AddEditCustomerScreen(
     customerId: Long? = null,
     viewModel: CustomerViewModel = viewModel()
 ) {
+    val context = LocalContext.current
     var name by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
     var photoUri by remember { mutableStateOf<Uri?>(null) }
     var photoUriString by remember { mutableStateOf("") }
+    var tempPhotoUri by remember { mutableStateOf<Uri?>(null) } // Temporary URI from picker
     var notes by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var existingCustomer by remember { mutableStateOf<Customer?>(null) }
@@ -66,8 +93,8 @@ fun AddEditCustomerScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            photoUri = it
-            photoUriString = it.toString()
+            tempPhotoUri = it // Store temporarily, will be copied on save
+            photoUri = it // Display immediately
         }
     }
 
@@ -100,7 +127,12 @@ fun AddEditCustomerScreen(
                     phoneNumber = it.phoneNumber
                     photoUriString = it.photoUri
                     if (photoUriString.isNotEmpty()) {
-                        photoUri = Uri.parse(photoUriString)
+                        // Check if it's a file path or URI
+                        photoUri = if (photoUriString.startsWith("/")) {
+                            Uri.fromFile(File(photoUriString))
+                        } else {
+                            Uri.parse(photoUriString)
+                        }
                     }
                     notes = it.notes
                 }
@@ -124,20 +156,37 @@ fun AddEditCustomerScreen(
                 FloatingActionButton(
                     onClick = {
                         isLoading = true
-                        val customer = Customer(
-                            id = customerId ?: 0,
-                            name = name.trim(),
-                            phoneNumber = phoneNumber.trim(),
-                            photoUri = photoUriString,
-                            notes = notes.trim()
-                        )
-                        
-                        if (isEditMode) {
-                            viewModel.updateCustomer(customer)
-                            navController.navigateUp()
-                        } else {
-                            viewModel.insertCustomer(customer) { id ->
+                        scope.launch {
+                            // Copy image to permanent storage if a new photo was selected
+                            val finalPhotoUri = if (tempPhotoUri != null) {
+                                val tempId = customerId ?: System.currentTimeMillis()
+                                copyImageToAppStorage(context, tempPhotoUri!!, tempId)
+                            } else {
+                                photoUriString // Keep existing photo
+                            }
+                            
+                            val customer = Customer(
+                                id = customerId ?: 0,
+                                name = name.trim(),
+                                phoneNumber = phoneNumber.trim(),
+                                photoUri = finalPhotoUri,
+                                notes = notes.trim()
+                            )
+                            
+                            if (isEditMode) {
+                                viewModel.updateCustomer(customer)
                                 navController.navigateUp()
+                            } else {
+                                viewModel.insertCustomer(customer) { id ->
+                                    // If we used a temp ID, copy the image again with the real ID
+                                    if (tempPhotoUri != null && id > 0) {
+                                        val permanentPhotoUri = copyImageToAppStorage(context, tempPhotoUri!!, id)
+                                        if (permanentPhotoUri.isNotEmpty()) {
+                                            viewModel.updateCustomer(customer.copy(id = id, photoUri = permanentPhotoUri))
+                                        }
+                                    }
+                                    navController.navigateUp()
+                                }
                             }
                         }
                     }
@@ -200,7 +249,12 @@ fun AddEditCustomerScreen(
                 label = { Text("Name *") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                isError = name.isBlank()
+                isError = name.isBlank(),
+                supportingText = {
+                    if (name.isBlank()) {
+                        Text("Name is required", color = MaterialTheme.colorScheme.error)
+                    }
+                }
             )
 
             OutlinedTextField(
@@ -210,7 +264,13 @@ fun AddEditCustomerScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                isError = phoneNumber.isBlank() || existingCustomer != null
+                isError = phoneNumber.isBlank() || existingCustomer != null,
+                supportingText = {
+                    when {
+                        phoneNumber.isBlank() -> Text("Phone number is required", color = MaterialTheme.colorScheme.error)
+                        existingCustomer != null -> Text("Phone number already exists", color = MaterialTheme.colorScheme.error)
+                    }
+                }
             )
 
             existingCustomer?.let { customer ->

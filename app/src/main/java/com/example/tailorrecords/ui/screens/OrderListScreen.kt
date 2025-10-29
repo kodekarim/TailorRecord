@@ -39,11 +39,34 @@ fun OrderListScreen(
     val selectedStatus by viewModel.selectedStatus.collectAsState()
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedOrder by remember { mutableStateOf<Order?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
+    
+    // Filter orders by search query
+    val filteredOrders = remember(ordersWithCustomers, searchQuery) {
+        if (searchQuery.isBlank()) {
+            ordersWithCustomers
+        } else {
+            ordersWithCustomers.filter { orderWithCustomer ->
+                orderWithCustomer.order.orderNumber.contains(searchQuery, ignoreCase = true) ||
+                orderWithCustomer.customer.name.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Orders") },
+                title = { 
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Orders")
+                        if (filteredOrders.isNotEmpty()) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Badge {
+                                Text("${filteredOrders.size}")
+                            }
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -57,6 +80,28 @@ fun OrderListScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // Search bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                placeholder = { Text("Search by order number or customer name") },
+                leadingIcon = {
+                    Icon(Icons.Default.Search, contentDescription = "Search")
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Clear")
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = MaterialTheme.shapes.medium
+            )
+            
             // Status filter chips
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -79,7 +124,7 @@ fun OrderListScreen(
             }
 
             // Order list
-            if (ordersWithCustomers.isEmpty()) {
+            if (filteredOrders.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -93,10 +138,16 @@ fun OrderListScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            "No orders found",
+                            if (searchQuery.isNotEmpty()) "No orders match your search" else "No orders found",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.outline
                         )
+                        if (searchQuery.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            TextButton(onClick = { searchQuery = "" }) {
+                                Text("Clear search")
+                            }
+                        }
                     }
                 }
             } else {
@@ -105,7 +156,7 @@ fun OrderListScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(ordersWithCustomers) { orderWithCustomer ->
+                    items(filteredOrders) { orderWithCustomer ->
                         OrderCard(
                             orderWithCustomer = orderWithCustomer,
                             onClick = {
@@ -321,7 +372,7 @@ fun OrderCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Divider()
+            HorizontalDivider()
 
             Spacer(modifier = Modifier.height(8.dp))
 

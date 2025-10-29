@@ -10,7 +10,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -21,10 +20,6 @@ import com.example.tailorrecords.data.models.MeasurementField
 import com.example.tailorrecords.viewmodel.CustomerViewModel
 import com.example.tailorrecords.viewmodel.SettingsViewModel
 import kotlinx.coroutines.flow.first
-import org.burnoutcrew.reorderable.ReorderableItem
-import org.burnoutcrew.reorderable.detectReorderAfterLongPress
-import org.burnoutcrew.reorderable.rememberReorderableLazyListState
-import org.burnoutcrew.reorderable.reorderable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -122,37 +117,18 @@ fun AddEditMeasurementScreen(
                 )
 
                 val fieldsInCategory = groupedFields[category] ?: emptyList()
-                val reorderableState = rememberReorderableLazyListState(onMove = { from, to ->
-                    val reordered = fieldsInCategory.toMutableList().apply {
-                        add(to.index, removeAt(from.index))
-                    }
-                    // Update display order
-                    val updatedFields = reordered.mapIndexed { index, field ->
-                        field.copy(displayOrder = index)
-                    }
-                    settingsViewModel.updateMeasurementFieldsOrder(updatedFields)
-                })
 
-                Column(modifier = Modifier.reorderable(reorderableState)) {
-                    fieldsInCategory.forEachIndexed { index, field ->
-                        ReorderableItem(reorderableState, key = field.id) { isDragging ->
-                            val elevation = if (isDragging) 8.dp else 0.dp
-                            MeasurementTextField(
-                                modifier = Modifier
-                                    .detectReorderAfterLongPress(reorderableState)
-                                    .shadow(elevation),
-                                label = field.name,
-                                value = measurementValues[field.name] ?: "",
-                                onValueChange = {
-                                    measurementValues = measurementValues + (field.name to it)
-                                },
-                                onDelete = {
-                                    fieldToDelete = field
-                                },
-                                showDragHandle = true
-                            )
+                fieldsInCategory.forEach { field ->
+                    MeasurementTextField(
+                        label = field.name,
+                        value = measurementValues[field.name] ?: "",
+                        onValueChange = {
+                            measurementValues = measurementValues + (field.name to it)
+                        },
+                        onDelete = {
+                            fieldToDelete = field
                         }
-                    }
+                    )
                 }
 
                 TextButton(
@@ -220,22 +196,13 @@ fun MeasurementTextField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
-    onDelete: (() -> Unit)? = null,
-    showDragHandle: Boolean = false
+    onDelete: (() -> Unit)? = null
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        if (showDragHandle) {
-            Icon(
-                Icons.Default.DragHandle,
-                contentDescription = "Drag to reorder",
-                modifier = Modifier.padding(end = 8.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
