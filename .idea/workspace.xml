@@ -4,29 +4,7 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d81f7031-3daf-41a2-90d5-d779b2804f51" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gradle/8.13/executionHistory/executionHistory.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.13/executionHistory/executionHistory.bin" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/8.13/executionHistory/executionHistory.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.13/executionHistory/executionHistory.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/8.13/fileHashes/fileHashes.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.13/fileHashes/fileHashes.bin" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/8.13/fileHashes/fileHashes.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.13/fileHashes/fileHashes.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/8.13/fileHashes/resourceHashesCache.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.13/fileHashes/resourceHashesCache.bin" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/AndroidManifest.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/AndroidManifest.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/MainActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/MainActivity.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/data/Converters.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/data/Converters.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/data/TailorDatabase.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/data/TailorDatabase.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/data/models/Order.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/data/models/Order.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/navigation/Screen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/navigation/Screen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/ui/screens/AddEditCustomerScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/ui/screens/AddEditCustomerScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/ui/screens/AddEditMeasurementScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/ui/screens/AddEditMeasurementScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/ui/screens/AddEditOrderScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/ui/screens/AddEditOrderScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/ui/screens/CustomerDetailScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/ui/screens/CustomerDetailScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/ui/screens/CustomerListScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/ui/screens/CustomerListScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/ui/screens/OrderCardGenerator.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/ui/screens/OrderCardGenerator.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/ui/screens/OrderCompletionScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/ui/screens/OrderCompletionScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/ui/screens/OrderListScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/tailorrecords/ui/screens/OrderListScreen.kt" afterDir="false" />
-    </list>
+    <list default="true" id="d81f7031-3daf-41a2-90d5-d779b2804f51" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
